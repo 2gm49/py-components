@@ -5,7 +5,7 @@
 ## Installation
 
 ```bash
-pip install py-components
+pip install DiscordPYComponents
 ```
 
 ## Requirements
