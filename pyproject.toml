@@ -2,7 +2,7 @@
 name = "py-components"
 version = "0.2.0"
 description = "Discord Components V2 for discord.py"
-authors = [{name="George"}]
+authors = [{name="2gm49"}]
 dependencies = ["aiohttp"]
 
 [build-system]
