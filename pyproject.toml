@@ -1,0 +1,10 @@
+[project]
+name = "py-components"
+version = "0.1.0"
+description = "Discord Components V2 for discord.py"
+authors = [{name="George"}]
+dependencies = ["aiohttp"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
