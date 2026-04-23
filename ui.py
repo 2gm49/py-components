@@ -1,18 +1,13 @@
-from .components import Text, Button
 from .http import send_message
-
 
 class UI:
     def __init__(self, *components):
         self.components = list(components)
 
-    def add_text(self, content):
-        self.components.append(Text(content))
+    def add(self, component):
+        self.components.append(component)
 
-    def add_button(self, label, custom_id, style=1):
-        self.components.append(Button(label, custom_id, style))
-
-    def to_dict(self):
+    def to_payload(self):
         return {
             "flags": 1 << 15,
             "components": [
@@ -25,6 +20,9 @@ class UI:
 
     async def send(self, ctx):
         token = ctx.bot.http.token
-        channel_id = ctx.channel.id
+        return await send_message(ctx.channel.id, token, self.to_payload())
 
-        return await send_message(channel_id, token, self.to_dict())
+
+async def send_ui(ctx, ui):
+    token = ctx.bot.http.token
+    return await send_message(ctx.channel.id, token, ui.to_payload())
