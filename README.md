@@ -2,6 +2,10 @@
 
 **Discord Components V2 for discord.py** — a lightweight helper library for building Discord UI components.
 
+DISCLAIMER: THIS IS NOT COMPLETED AND LACKS FEATURES AND HAS BUGS.
+
+PyPi: https://pypi.org/project/DiscordPYComponents/
+
 ## Installation
 
 ```bash
