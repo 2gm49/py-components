@@ -2,7 +2,6 @@ import aiohttp
 
 API = "https://discord.com/api/v10"
 
-
 async def send_message(channel_id, token, payload):
     url = f"{API}/channels/{channel_id}/messages"
 
