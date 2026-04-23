@@ -16,20 +16,22 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install build tools
+      - name: Install build tools (isolated)
         run: |
-          python -m pip install --upgrade pip
-          pip install build
+          python -Im ensurepip --upgrade
+          python -Im pip install --upgrade pip setuptools wheel
+          python -Im pip install build
 
       - name: Build package
-        run: python -m build
+        run: python -Im build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
