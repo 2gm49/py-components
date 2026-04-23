@@ -1,6 +1,7 @@
 [project]
-name = "py-components"
-version = "0.2.1"
+<<<<<<< HEAD
+name = "DiscordPYComponents"
+version = "0.2.11"
 description = "Discord Components V2 for discord.py"
 authors = [{name="2gm49"}]
 dependencies = ["aiohttp"]
