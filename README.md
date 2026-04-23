@@ -1,4 +1,7 @@
-# py-components
+# .----..-.  .-.    .---.  .----. .-.   .-..----.  .----. .-. .-..----..-. .-. .---.  .----.
+# | {}  }\ \/ /    /  ___}/  {}  \|  `.'  || {}  }/  {}  \|  `| || {_  |  `| |{_   _}{ {__  
+# | .--'  }  {     \     }\      /| |\ /| || .--' \      /| |\  || {__ | |\  |  | |  .-._} }
+# `-'     `--'      `---'  `----' `-' ` `-'`-'     `----' `-' `-'`----'`-' `-'  `-'  `----' 
 
 **py-components** is a lightweight Python library that provides helpers for building Discord Components (Buttons, Select Menus, Action Rows) for use with `discord.py`.
 
@@ -6,7 +9,7 @@ It is designed to simplify the creation and handling of Discord UI components wh
 
 ---
 
-## ✨ Features
+## Features
 
 - Simple Discord Components V2 wrapper
 - Easy-to-use Button, Select Menu, and Action Row builders
@@ -16,7 +19,7 @@ It is designed to simplify the creation and handling of Discord UI components wh
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 pip install py-components
@@ -24,7 +27,7 @@ pip install py-components
 
 ---
 
-## ⚙️ Requirements
+## Requirements
 
 * Python 3.10+
 * discord.py (latest recommended)
@@ -32,7 +35,7 @@ pip install py-components
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Creating a Button
 
@@ -50,7 +53,7 @@ row = ActionRow(components=[button])
 
 ---
 
-## 🧠 Handling Interactions
+## Handling Interactions
 
 ```python
 from py_components import Button
@@ -67,9 +70,9 @@ async def handle_interaction(interaction):
 
 ---
 
-## 🧩 Components
+## Components
 
-### 🔘 Buttons
+### Buttons
 
 Supported styles:
 
@@ -88,7 +91,7 @@ Button(
 
 ---
 
-### 📋 Select Menus
+### Select Menus
 
 ```python
 from py_components import SelectMenu
@@ -104,7 +107,7 @@ menu = SelectMenu(
 
 ---
 
-### 📦 Action Rows
+### Action Rows
 
 Used to group components together.
 
@@ -116,7 +119,7 @@ row = ActionRow(components=[button, menu])
 
 ---
 
-## 📁 Example Usage
+## Example Usage
 
 ```python
 from py_components import Button, ActionRow, SelectMenu
@@ -140,7 +143,7 @@ row = ActionRow(components=[button, menu])
 
 ---
 
-## 🛣 Roadmap
+## Roadmap
 
 * Modal support
 * Full discord.py integration helpers
@@ -151,7 +154,7 @@ row = ActionRow(components=[button, menu])
 
 ---
 
-## 📌 Project Structure
+## Project Structure
 
 ```
 py-components/
@@ -167,13 +170,13 @@ py-components/
 
 ---
 
-## 📜 License
+## License
 
 MIT License
 
 ---
 
-## 💡 Notes
+## Notes
 
 This library is a helper layer for building Discord UI components more efficiently. It does not replace `discord.py`, but extends it with easier component creation utilities.
 
