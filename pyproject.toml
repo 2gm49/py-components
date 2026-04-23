@@ -4,6 +4,7 @@ version = "0.2.11"
 description = "Discord Components V2 for discord.py"
 authors = [{name="2gm49"}]
 dependencies = ["aiohttp"]
+reademe = README.md
 
 [build-system]
 requires = ["setuptools"]
