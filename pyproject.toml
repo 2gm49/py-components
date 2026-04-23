@@ -1,5 +1,4 @@
 [project]
-<<<<<<< HEAD
 name = "DiscordPYComponents"
 version = "0.2.11"
 description = "Discord Components V2 for discord.py"
