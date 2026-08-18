@@ -42,7 +42,7 @@ from .registry import Registry, default_registry
 from .http import send_message, edit_message, respond_interaction, open_modal
 from .ids import assign_ids, find_by_id, replace_by_id
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __all__ = [
     "ButtonStyle",
     "ComponentType",

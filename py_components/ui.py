@@ -50,11 +50,9 @@ class UI:
         return self.to_payload()["components"]
 
     def get(self, component_id: int) -> Optional[dict[str, Any]]:
-        """Find a component dict by id in the current payload tree."""
         return find_by_id(self.to_payload()["components"], component_id)
 
     def replace(self, component_id: int, component: Component) -> dict[str, Any]:
-        """Build payload with the component at component_id swapped out."""
         payload = self.to_payload()
         ok = replace_by_id(payload["components"], component_id, component.to_dict())
         if not ok:
@@ -113,7 +111,14 @@ class UI:
 
         msg = message or target
         if hasattr(msg, "edit"):
-            return await msg.edit(components=payload["components"], **kwargs)
+            try:
+                return await msg.edit(
+                    components=payload["components"],
+                    flags=payload.get("flags", IS_COMPONENTS_V2),
+                    **kwargs,
+                )
+            except TypeError:
+                return await msg.edit(components=payload["components"], **kwargs)
 
         raise ValueError("pass an Interaction or Message")
 
@@ -132,33 +137,28 @@ class UI:
         if response is not None:
             is_done = getattr(response, "is_done", lambda: False)()
             if not is_done and hasattr(response, "send_message"):
-                try:
-                    return await response.send_message(
-                        components=components, flags=flags, files=files or [], **kwargs
-                    )
-                except TypeError:
+                for attempt in (
+                    dict(components=components, flags=flags, files=files or [], **kwargs),
+                    dict(components=components, ephemeral=bool(flags & (1 << 6)), files=files or [], **kwargs),
+                ):
                     try:
-                        return await response.send_message(
-                            components=components,
-                            ephemeral=bool(flags & (1 << 6)),
-                            files=files or [],
-                            **kwargs,
-                        )
+                        return await response.send_message(**attempt)
+                    except TypeError:
+                        continue
                     except Exception:
-                        pass
+                        break
             followup = getattr(interaction, "followup", None)
             if followup is not None and hasattr(followup, "send"):
-                try:
-                    return await followup.send(
-                        components=components, flags=flags, files=files or [], **kwargs
-                    )
-                except TypeError:
-                    return await followup.send(
-                        components=components,
-                        ephemeral=bool(flags & (1 << 6)),
-                        files=files or [],
-                        **kwargs,
-                    )
+                for attempt in (
+                    dict(components=components, flags=flags, files=files or [], **kwargs),
+                    dict(components=components, ephemeral=bool(flags & (1 << 6)), files=files or [], **kwargs),
+                ):
+                    try:
+                        return await followup.send(**attempt)
+                    except TypeError:
+                        continue
+                    except Exception:
+                        break
 
         token = _resolve_token(interaction)
         application_id = _resolve_application_id(interaction)
@@ -168,35 +168,41 @@ class UI:
 
     async def _send_channel(
         self,
-        ctx: Any,
+        target: Any,
         payload: dict[str, Any],
         *,
         files: Optional[list] = None,
         **kwargs: Any,
     ) -> Any:
         send_method = None
-        if hasattr(ctx, "send"):
-            send_method = ctx.send
-        elif hasattr(ctx, "channel") and hasattr(ctx.channel, "send"):
-            send_method = ctx.channel.send
+        if callable(getattr(target, "send", None)):
+            send_method = target.send
+        elif hasattr(target, "channel") and callable(getattr(target.channel, "send", None)):
+            send_method = target.channel.send
 
         if send_method is not None:
-            try:
-                return await send_method(
-                    components=payload["components"],
-                    flags=payload.get("flags", IS_COMPONENTS_V2),
-                    files=files or [],
-                    **kwargs,
-                )
-            except TypeError:
+            # discord.py Messageable.send — try with flags first (needed for V2)
+            attempts = [
+                dict(components=payload["components"], flags=payload.get("flags", IS_COMPONENTS_V2), files=files or [], **kwargs),
+                dict(components=payload["components"], flags=payload.get("flags", IS_COMPONENTS_V2), **kwargs),
+                dict(components=payload["components"], files=files or [], **kwargs),
+                dict(components=payload["components"], **kwargs),
+            ]
+            last_err: Exception | None = None
+            for attempt in attempts:
                 try:
-                    return await send_method(
-                        components=payload["components"], files=files or [], **kwargs
-                    )
-                except Exception:
-                    pass
+                    return await send_method(**attempt)
+                except TypeError as e:
+                    last_err = e
+                    continue
+                except Exception as e:
+                    # real API error — don't keep retrying silently
+                    last_err = e
+                    break
+            if last_err is not None and not isinstance(last_err, TypeError):
+                raise last_err
 
-        channel_id, token = _resolve_channel_and_token(ctx)
+        channel_id, token = _resolve_channel_and_token(target)
         return await send_message(channel_id, token, payload, files=files)
 
 
@@ -214,20 +220,30 @@ def _is_interaction(obj: Any) -> bool:
     return False
 
 
-def _resolve_channel_and_token(ctx: Any) -> tuple[Any, str]:
+def _resolve_channel_and_token(obj: Any) -> tuple[Any, str]:
     channel_id = None
-    if hasattr(ctx, "channel") and ctx.channel is not None:
-        channel_id = getattr(ctx.channel, "id", None)
+
+    # bare channel / thread
+    if getattr(obj, "id", None) is not None and callable(getattr(obj, "send", None)):
+        # TextChannel, DMChannel, Thread, etc.
+        if not _is_interaction(obj):
+            channel_id = obj.id
+
+    if channel_id is None and hasattr(obj, "channel") and obj.channel is not None:
+        channel_id = getattr(obj.channel, "id", None)
     if channel_id is None:
-        channel_id = getattr(ctx, "channel_id", None)
-    if channel_id is None and hasattr(ctx, "message"):
-        channel_id = getattr(getattr(ctx.message, "channel", None), "id", None)
+        channel_id = getattr(obj, "channel_id", None)
+    if channel_id is None and hasattr(obj, "message"):
+        channel_id = getattr(getattr(obj.message, "channel", None), "id", None)
+
     if channel_id is None:
         raise ValueError("could not resolve channel id")
-    return channel_id, _resolve_token(ctx)
+
+    return channel_id, _resolve_token(obj)
 
 
 def _resolve_token(obj: Any) -> str:
+    # common discord.py paths
     for attr in ("bot", "client", "_state"):
         owner = getattr(obj, attr, None)
         if owner is None:
@@ -237,6 +253,24 @@ def _resolve_token(obj: Any) -> str:
             tok = getattr(http, "token", None)
             if tok:
                 return tok
+        # bot.http.token
+        tok = getattr(owner, "token", None)
+        if tok and isinstance(tok, str) and not tok.startswith("Bot "):
+            # sometimes the raw token is stored; http.token is preferred
+            pass
+
+    # channel._state.http.token
+    state = getattr(obj, "_state", None)
+    if state is not None:
+        http = getattr(state, "http", None)
+        if http is not None:
+            tok = getattr(http, "token", None)
+            if tok:
+                return tok
+
+    if hasattr(obj, "channel"):
+        return _resolve_token(obj.channel)
+
     raise ValueError("could not resolve bot token")
 
 
