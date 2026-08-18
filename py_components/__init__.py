@@ -1,5 +1,3 @@
-"""Discord Components V2 for discord.py — lightweight helper library."""
-
 from .enums import (
     ButtonStyle,
     ComponentType,
@@ -11,12 +9,20 @@ from .components import (
     ActionRow,
     Button,
     ChannelSelect,
+    Checkbox,
+    CheckboxGroup,
+    CheckboxGroupOption,
     Component,
     Container,
     File,
+    FileUpload,
+    GroupOption,
+    Label,
     MediaGallery,
     MediaGalleryItem,
     MentionableSelect,
+    RadioGroup,
+    RadioGroupOption,
     RoleSelect,
     Section,
     SelectOption,
@@ -24,32 +30,42 @@ from .components import (
     StringSelect,
     Text,
     TextDisplay,
+    TextInput,
     Thumbnail,
     UserSelect,
+    make_emoji,
 )
+from .modal import Modal
 from .ui import UI, send_ui
 from .view import View, button
 from .registry import Registry, default_registry
-from .http import send_message, edit_message, respond_interaction
+from .http import send_message, edit_message, respond_interaction, open_modal
+from .ids import assign_ids, find_by_id, replace_by_id
 
-__version__ = "1.0.0"
+__version__ = "1.3.0"
 __all__ = [
-    # enums
     "ButtonStyle",
     "ComponentType",
     "IS_COMPONENTS_V2",
     "SeparatorSpacing",
     "TextInputStyle",
-    # components
     "ActionRow",
     "Button",
     "ChannelSelect",
+    "Checkbox",
+    "CheckboxGroup",
+    "CheckboxGroupOption",
     "Component",
     "Container",
     "File",
+    "FileUpload",
+    "GroupOption",
+    "Label",
     "MediaGallery",
     "MediaGalleryItem",
     "MentionableSelect",
+    "RadioGroup",
+    "RadioGroupOption",
     "RoleSelect",
     "Section",
     "SelectOption",
@@ -57,17 +73,22 @@ __all__ = [
     "StringSelect",
     "Text",
     "TextDisplay",
+    "TextInput",
     "Thumbnail",
     "UserSelect",
-    # high-level
+    "make_emoji",
+    "Modal",
     "UI",
     "send_ui",
     "View",
     "button",
     "Registry",
     "default_registry",
-    # HTTP
     "send_message",
     "edit_message",
     "respond_interaction",
+    "open_modal",
+    "assign_ids",
+    "find_by_id",
+    "replace_by_id",
 ]

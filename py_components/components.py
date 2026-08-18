@@ -11,8 +11,23 @@ from .enums import (
 )
 
 
+
+def make_emoji(
+    name: str,
+    *,
+    id: Optional[str | int] = None,
+    animated: bool = False,
+) -> dict[str, Any]:
+    """Partial emoji object. Unicode: make_emoji("🔥") — custom: make_emoji("name", id=...)"""
+    data: dict[str, Any] = {"name": name}
+    if id is not None:
+        data["id"] = str(id)
+        data["animated"] = animated
+    return data
+
+
 class Component:
-    """Base class for all components."""
+    """Base component."""
 
     type: ComponentType
 
@@ -24,12 +39,13 @@ class Component:
         if self.id is not None:
             data["id"] = self.id
         return data
-        
-class TextDisplay(Component):
-    """Markdown text block (type 10).
 
-    Supports standard Discord markdown. Mentions respect message allowed_mentions.
-    """
+
+
+
+
+class TextDisplay(Component):
+    """Markdown text (type 10)."""
 
     type = ComponentType.TEXT_DISPLAY
 
@@ -45,15 +61,11 @@ class TextDisplay(Component):
         return data
 
 
-# backwards-compatible alias used in original library
 Text = TextDisplay
 
 
 class Thumbnail(Component):
-    """Small image used as a Section accessory (type 11).
-
-    Only images (including GIF/WEBP) are supported.
-    """
+    """Section accessory image (type 11)."""
 
     type = ComponentType.THUMBNAIL
 
@@ -81,7 +93,7 @@ class Thumbnail(Component):
 
 
 class MediaGalleryItem:
-    """A single item inside a MediaGallery."""
+    """One item in a MediaGallery."""
 
     def __init__(
         self,
@@ -104,7 +116,7 @@ class MediaGalleryItem:
 
 
 class MediaGallery(Component):
-    """Gallery of 1-10 media items (type 12)."""
+    """1-10 media items (type 12)."""
 
     type = ComponentType.MEDIA_GALLERY
 
@@ -130,11 +142,7 @@ class MediaGallery(Component):
 
 
 class File(Component):
-    """Displays an attached file (type 13).
-
-    The file must be uploaded as a message attachment and referenced
-    with the attachment://filename syntax.
-    """
+    """Attached file via attachment:// (type 13)."""
 
     type = ComponentType.FILE
 
@@ -159,8 +167,12 @@ class File(Component):
             data["spoiler"] = True
         return data
 
+
+
+
+
 class ActionRow(Component):
-    """Row of up to 5 buttons or a single select menu (type 1)."""
+    """Up to 5 buttons or one select (type 1)."""
 
     type = ComponentType.ACTION_ROW
 
@@ -187,10 +199,7 @@ class ActionRow(Component):
 
 
 class Section(Component):
-    """Text content (1-3 TextDisplays) alongside an accessory (type 9).
-
-    Accessory may be a Button or a Thumbnail.
-    """
+    """1-3 TextDisplays + accessory button/thumbnail (type 9)."""
 
     type = ComponentType.SECTION
 
@@ -215,7 +224,7 @@ class Section(Component):
 
 
 class Separator(Component):
-    """Vertical padding / divider between components (type 14)."""
+    """Padding / divider (type 14)."""
 
     type = ComponentType.SEPARATOR
 
@@ -238,11 +247,7 @@ class Separator(Component):
 
 
 class Container(Component):
-    """Visually groups child components with optional accent colour (type 17).
-
-    Allowed children: ActionRow, TextDisplay, Section, MediaGallery,
-    Separator, File.
-    """
+    """Groups children with optional accent colour (type 17)."""
 
     type = ComponentType.CONTAINER
 
@@ -272,12 +277,11 @@ class Container(Component):
         return data
 
 
-class Button(Component):
-    """Clickable button (type 2).
 
-    Must live inside an ActionRow or as a Section accessory.
-    Non-link / non-premium buttons require a custom_id.
-    """
+
+
+class Button(Component):
+    """Button (type 2). Needs custom_id unless LINK/PREMIUM."""
 
     type = ComponentType.BUTTON
 
@@ -289,7 +293,7 @@ class Button(Component):
         style: ButtonStyle = ButtonStyle.PRIMARY,
         url: Optional[str] = None,
         sku_id: Optional[str] = None,
-        emoji: Optional[dict[str, Any]] = None,
+        emoji: Optional[Union[dict[str, Any], str]] = None,
         disabled: bool = False,
         id: Optional[int] = None,
     ):
@@ -320,6 +324,8 @@ class Button(Component):
         self.style = style
         self.url = url
         self.sku_id = sku_id
+        if isinstance(emoji, str):
+            emoji = make_emoji(emoji)
         self.emoji = emoji
         self.disabled = disabled
 
@@ -342,7 +348,7 @@ class Button(Component):
 
 
 class SelectOption:
-    """Option for a StringSelect menu."""
+    """StringSelect option."""
 
     def __init__(
         self,
@@ -350,7 +356,7 @@ class SelectOption:
         value: str,
         *,
         description: Optional[str] = None,
-        emoji: Optional[dict[str, Any]] = None,
+        emoji: Optional[Union[dict[str, Any], str]] = None,
         default: bool = False,
     ):
         if len(label) > 100 or len(value) > 100:
@@ -358,6 +364,8 @@ class SelectOption:
         self.label = label
         self.value = value
         self.description = description
+        if isinstance(emoji, str):
+            emoji = make_emoji(emoji)
         self.emoji = emoji
         self.default = default
 
@@ -376,7 +384,7 @@ class SelectOption:
 
 
 class StringSelect(Component):
-    """Dropdown for choosing from predefined string options (type 3)."""
+    """String dropdown (type 3)."""
 
     type = ComponentType.STRING_SELECT
 
@@ -389,6 +397,7 @@ class StringSelect(Component):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        required: Optional[bool] = None,
         id: Optional[int] = None,
     ):
         super().__init__(id=id)
@@ -402,6 +411,7 @@ class StringSelect(Component):
         self.min_values = min_values
         self.max_values = max_values
         self.disabled = disabled
+        self.required = required
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -413,11 +423,13 @@ class StringSelect(Component):
         data["max_values"] = self.max_values
         if self.disabled:
             data["disabled"] = True
+        if self.required is not None:
+            data["required"] = self.required
         return data
 
 
 class UserSelect(Component):
-    """Select menu for users (type 5)."""
+    """User select (type 5)."""
 
     type = ComponentType.USER_SELECT
 
@@ -429,6 +441,8 @@ class UserSelect(Component):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        required: Optional[bool] = None,
+        default_values: Optional[Sequence[dict[str, Any]]] = None,
         id: Optional[int] = None,
     ):
         super().__init__(id=id)
@@ -437,6 +451,8 @@ class UserSelect(Component):
         self.min_values = min_values
         self.max_values = max_values
         self.disabled = disabled
+        self.required = required
+        self.default_values = list(default_values) if default_values else None
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -447,11 +463,15 @@ class UserSelect(Component):
         data["max_values"] = self.max_values
         if self.disabled:
             data["disabled"] = True
+        if self.required is not None:
+            data["required"] = self.required
+        if self.default_values is not None:
+            data["default_values"] = self.default_values
         return data
 
 
 class RoleSelect(Component):
-    """Select menu for roles (type 6)."""
+    """Role select (type 6)."""
 
     type = ComponentType.ROLE_SELECT
 
@@ -463,6 +483,8 @@ class RoleSelect(Component):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        required: Optional[bool] = None,
+        default_values: Optional[Sequence[dict[str, Any]]] = None,
         id: Optional[int] = None,
     ):
         super().__init__(id=id)
@@ -471,6 +493,8 @@ class RoleSelect(Component):
         self.min_values = min_values
         self.max_values = max_values
         self.disabled = disabled
+        self.required = required
+        self.default_values = list(default_values) if default_values else None
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -481,11 +505,15 @@ class RoleSelect(Component):
         data["max_values"] = self.max_values
         if self.disabled:
             data["disabled"] = True
+        if self.required is not None:
+            data["required"] = self.required
+        if self.default_values is not None:
+            data["default_values"] = self.default_values
         return data
 
 
 class MentionableSelect(Component):
-    """Select menu for users and roles (type 7)."""
+    """User/role select (type 7)."""
 
     type = ComponentType.MENTIONABLE_SELECT
 
@@ -497,6 +525,8 @@ class MentionableSelect(Component):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        required: Optional[bool] = None,
+        default_values: Optional[Sequence[dict[str, Any]]] = None,
         id: Optional[int] = None,
     ):
         super().__init__(id=id)
@@ -505,6 +535,8 @@ class MentionableSelect(Component):
         self.min_values = min_values
         self.max_values = max_values
         self.disabled = disabled
+        self.required = required
+        self.default_values = list(default_values) if default_values else None
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -515,11 +547,15 @@ class MentionableSelect(Component):
         data["max_values"] = self.max_values
         if self.disabled:
             data["disabled"] = True
+        if self.required is not None:
+            data["required"] = self.required
+        if self.default_values is not None:
+            data["default_values"] = self.default_values
         return data
 
 
 class ChannelSelect(Component):
-    """Select menu for channels (type 8)."""
+    """Channel select (type 8)."""
 
     type = ComponentType.CHANNEL_SELECT
 
@@ -532,6 +568,8 @@ class ChannelSelect(Component):
         min_values: int = 1,
         max_values: int = 1,
         disabled: bool = False,
+        required: Optional[bool] = None,
+        default_values: Optional[Sequence[dict[str, Any]]] = None,
         id: Optional[int] = None,
     ):
         super().__init__(id=id)
@@ -541,6 +579,8 @@ class ChannelSelect(Component):
         self.min_values = min_values
         self.max_values = max_values
         self.disabled = disabled
+        self.required = required
+        self.default_values = list(default_values) if default_values else None
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -553,4 +593,247 @@ class ChannelSelect(Component):
         data["max_values"] = self.max_values
         if self.disabled:
             data["disabled"] = True
+        if self.required is not None:
+            data["required"] = self.required
+        if self.default_values is not None:
+            data["default_values"] = self.default_values
+        return data
+
+
+
+
+
+class TextInput(Component):
+    """Modal text field (type 4). Put inside a Label."""
+
+    type = ComponentType.TEXT_INPUT
+
+    def __init__(
+        self,
+        custom_id: str,
+        *,
+        style: int = 1,  # TextInputStyle.SHORT
+        min_length: Optional[int] = None,
+        max_length: Optional[int] = None,
+        required: bool = True,
+        value: Optional[str] = None,
+        placeholder: Optional[str] = None,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not 1 <= len(custom_id) <= 100:
+            raise ValueError("custom_id must be 1-100 characters")
+        self.custom_id = custom_id
+        self.style = int(style)
+        self.min_length = min_length
+        self.max_length = max_length
+        self.required = required
+        self.value = value
+        self.placeholder = placeholder
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["custom_id"] = self.custom_id
+        data["style"] = self.style
+        if self.min_length is not None:
+            data["min_length"] = self.min_length
+        if self.max_length is not None:
+            data["max_length"] = self.max_length
+        data["required"] = self.required
+        if self.value is not None:
+            data["value"] = self.value
+        if self.placeholder is not None:
+            data["placeholder"] = self.placeholder
+        return data
+
+
+class Label(Component):
+    """Label + child control for modals (type 18)."""
+
+    type = ComponentType.LABEL
+
+    def __init__(
+        self,
+        label: str,
+        component: Component,
+        *,
+        description: Optional[str] = None,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not label or len(label) > 45:
+            raise ValueError("Label text must be 1-45 characters")
+        if description is not None and len(description) > 100:
+            raise ValueError("Label description max length is 100")
+        self.label = label
+        self.description = description
+        self.component = component
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["label"] = self.label
+        if self.description is not None:
+            data["description"] = self.description
+        data["component"] = self.component.to_dict()
+        return data
+
+
+class FileUpload(Component):
+    """Modal file upload (type 19). Inside a Label."""
+
+    type = ComponentType.FILE_UPLOAD
+
+    def __init__(
+        self,
+        custom_id: str,
+        *,
+        min_values: int = 1,
+        max_values: int = 1,
+        required: bool = True,
+        file_types: Optional[Sequence[str]] = None,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not 1 <= len(custom_id) <= 100:
+            raise ValueError("custom_id must be 1-100 characters")
+        if not 0 <= min_values <= 10 or not 1 <= max_values <= 10:
+            raise ValueError("min_values 0-10, max_values 1-10")
+        self.custom_id = custom_id
+        self.min_values = min_values
+        self.max_values = max_values
+        self.required = required
+        self.file_types = list(file_types) if file_types else None
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["custom_id"] = self.custom_id
+        data["min_values"] = self.min_values
+        data["max_values"] = self.max_values
+        data["required"] = self.required
+        if self.file_types is not None:
+            data["file_types"] = self.file_types
+        return data
+
+
+class GroupOption:
+    """Option for RadioGroup / CheckboxGroup."""
+
+    def __init__(
+        self,
+        label: str,
+        value: str,
+        *,
+        description: Optional[str] = None,
+        default: bool = False,
+    ):
+        if len(label) > 100 or len(value) > 100:
+            raise ValueError("label and value max length is 100")
+        self.label = label
+        self.value = value
+        self.description = description
+        self.default = default
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"label": self.label, "value": self.value}
+        if self.description is not None:
+            data["description"] = self.description
+        if self.default:
+            data["default"] = True
+        return data
+
+
+# Aliases
+RadioGroupOption = GroupOption
+CheckboxGroupOption = GroupOption
+
+
+class RadioGroup(Component):
+    """Radio list for modals (type 21). Inside a Label."""
+
+    type = ComponentType.RADIO_GROUP
+
+    def __init__(
+        self,
+        custom_id: str,
+        options: Sequence[GroupOption],
+        *,
+        required: bool = True,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not 1 <= len(custom_id) <= 100:
+            raise ValueError("custom_id must be 1-100 characters")
+        if not 2 <= len(options) <= 10:
+            raise ValueError("RadioGroup requires 2-10 options")
+        self.custom_id = custom_id
+        self.options = list(options)
+        self.required = required
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["custom_id"] = self.custom_id
+        data["options"] = [o.to_dict() for o in self.options]
+        data["required"] = self.required
+        return data
+
+
+class CheckboxGroup(Component):
+    """Checkbox list for modals (type 22). Inside a Label."""
+
+    type = ComponentType.CHECKBOX_GROUP
+
+    def __init__(
+        self,
+        custom_id: str,
+        options: Sequence[GroupOption],
+        *,
+        min_values: int = 1,
+        max_values: Optional[int] = None,
+        required: bool = True,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not 1 <= len(custom_id) <= 100:
+            raise ValueError("custom_id must be 1-100 characters")
+        if not 1 <= len(options) <= 10:
+            raise ValueError("CheckboxGroup requires 1-10 options")
+        self.custom_id = custom_id
+        self.options = list(options)
+        self.min_values = min_values
+        self.max_values = max_values if max_values is not None else len(options)
+        self.required = required
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["custom_id"] = self.custom_id
+        data["options"] = [o.to_dict() for o in self.options]
+        data["min_values"] = self.min_values
+        data["max_values"] = self.max_values
+        data["required"] = self.required
+        return data
+
+
+class Checkbox(Component):
+    """Single checkbox for modals (type 23). Inside a Label."""
+
+    type = ComponentType.CHECKBOX
+
+    def __init__(
+        self,
+        custom_id: str,
+        *,
+        default: bool = False,
+        id: Optional[int] = None,
+    ):
+        super().__init__(id=id)
+        if not 1 <= len(custom_id) <= 100:
+            raise ValueError("custom_id must be 1-100 characters")
+        self.custom_id = custom_id
+        self.default = default
+
+    def to_dict(self) -> dict[str, Any]:
+        data = super().to_dict()
+        data["custom_id"] = self.custom_id
+        if self.default:
+            data["default"] = True
         return data

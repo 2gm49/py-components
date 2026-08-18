@@ -1,49 +1,27 @@
-"""High-level UI builder for Components V2 messages."""
-
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
-from .components import (
-    ActionRow,
-    Button,
-    Component,
-)
+from .components import ActionRow, Button, Component
 from .enums import IS_COMPONENTS_V2
 from .http import send_message, respond_interaction
+from .ids import assign_ids, find_by_id, replace_by_id
 
 
 class UI:
-    """Builder for a Components V2 message payload.
-
-    Components may be mixed freely. Buttons are automatically wrapped
-    into ActionRows (max 5 buttons per row). Select menus should be
-    placed inside an ActionRow yourself (one select per row). Other
-    components are placed at the top level.
-
-    Example::
-
-        ui = UI(
-            TextDisplay("Hello **world**"),
-            Button("Yes", custom_id="yes", style=ButtonStyle.SUCCESS),
-            Button("No", custom_id="no", style=ButtonStyle.DANGER),
-        )
-        await ui.send(ctx)
-    """
-
     def __init__(self, *components: Component):
         self.components: list[Component] = list(components)
+        self._auto_ids = True
 
     def add(self, *components: Component) -> "UI":
         self.components.extend(components)
         return self
 
-    def to_payload(self) -> dict[str, Any]:
-        """Build the final message payload with the IS_COMPONENTS_V2 flag."""
+    def to_payload(self, *, assign_ids_: bool | None = None) -> dict[str, Any]:
         top_level: list[dict[str, Any]] = []
         button_buffer: list[Button] = []
 
-        def flush_buttons() -> None:
+        def flush() -> None:
             nonlocal button_buffer
             if button_buffer:
                 top_level.append(ActionRow(*button_buffer).to_dict())
@@ -53,46 +31,187 @@ class UI:
             if isinstance(c, Button):
                 button_buffer.append(c)
                 if len(button_buffer) == 5:
-                    flush_buttons()
+                    flush()
             elif isinstance(c, ActionRow):
-                flush_buttons()
+                flush()
                 top_level.append(c.to_dict())
             else:
-                flush_buttons()
+                flush()
                 top_level.append(c.to_dict())
+        flush()
 
-        flush_buttons()
+        do_ids = self._auto_ids if assign_ids_ is None else assign_ids_
+        if do_ids:
+            assign_ids(top_level)
 
-        return {
-            "flags": IS_COMPONENTS_V2,
-            "components": top_level,
-        }
+        return {"flags": IS_COMPONENTS_V2, "components": top_level}
 
-    async def send(self, ctx: Any, **kwargs: Any) -> str:
-        """Send the UI as a new channel message.
+    def to_components(self) -> list[dict[str, Any]]:
+        return self.to_payload()["components"]
 
-        ``ctx`` may be a discord.py Context, Interaction, or any object
-        that exposes channel id and a bot token via ``.bot.http.token``.
-        """
-        channel_id, token = _resolve_channel_and_token(ctx)
-        return await send_message(channel_id, token, self.to_payload(), **kwargs)
+    def get(self, component_id: int) -> Optional[dict[str, Any]]:
+        """Find a component dict by id in the current payload tree."""
+        return find_by_id(self.to_payload()["components"], component_id)
 
-    async def reply(self, interaction: Any, *, ephemeral: bool = False) -> str:
-        """Respond to an interaction with this UI (callback type 4)."""
-        token = _resolve_token(interaction)
-        application_id = _resolve_application_id(interaction)
-        interaction_token = interaction.token
+    def replace(self, component_id: int, component: Component) -> dict[str, Any]:
+        """Build payload with the component at component_id swapped out."""
+        payload = self.to_payload()
+        ok = replace_by_id(payload["components"], component_id, component.to_dict())
+        if not ok:
+            raise KeyError(f"no component with id={component_id}")
+        return payload
+
+    async def send(
+        self,
+        target: Any,
+        *,
+        ephemeral: bool = False,
+        files: Optional[list] = None,
+        **kwargs: Any,
+    ) -> Any:
         payload = self.to_payload()
         if ephemeral:
-            payload["flags"] = payload.get("flags", 0) | (1 << 6)  # EPHEMERAL
+            payload["flags"] = payload.get("flags", 0) | (1 << 6)
+
+        if _is_interaction(target):
+            return await self._send_interaction(target, payload, files=files, **kwargs)
+        return await self._send_channel(target, payload, files=files, **kwargs)
+
+    async def reply(
+        self,
+        interaction: Any,
+        *,
+        ephemeral: bool = False,
+        files: Optional[list] = None,
+        **kwargs: Any,
+    ) -> Any:
+        return await self.send(interaction, ephemeral=ephemeral, files=files, **kwargs)
+
+    async def edit(
+        self,
+        target: Any,
+        *,
+        message: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        payload = self.to_payload()
+
+        if _is_interaction(target):
+            response = getattr(target, "response", None)
+            if response is not None and hasattr(response, "edit_message"):
+                try:
+                    return await response.edit_message(
+                        components=payload["components"], **kwargs
+                    )
+                except Exception:
+                    pass
+            for name in ("edit_original_response", "edit_original_message"):
+                if hasattr(target, name):
+                    return await getattr(target, name)(
+                        components=payload["components"], **kwargs
+                    )
+
+        msg = message or target
+        if hasattr(msg, "edit"):
+            return await msg.edit(components=payload["components"], **kwargs)
+
+        raise ValueError("pass an Interaction or Message")
+
+    async def _send_interaction(
+        self,
+        interaction: Any,
+        payload: dict[str, Any],
+        *,
+        files: Optional[list] = None,
+        **kwargs: Any,
+    ) -> Any:
+        response = getattr(interaction, "response", None)
+        components = payload["components"]
+        flags = payload.get("flags", IS_COMPONENTS_V2)
+
+        if response is not None:
+            is_done = getattr(response, "is_done", lambda: False)()
+            if not is_done and hasattr(response, "send_message"):
+                try:
+                    return await response.send_message(
+                        components=components, flags=flags, files=files or [], **kwargs
+                    )
+                except TypeError:
+                    try:
+                        return await response.send_message(
+                            components=components,
+                            ephemeral=bool(flags & (1 << 6)),
+                            files=files or [],
+                            **kwargs,
+                        )
+                    except Exception:
+                        pass
+            followup = getattr(interaction, "followup", None)
+            if followup is not None and hasattr(followup, "send"):
+                try:
+                    return await followup.send(
+                        components=components, flags=flags, files=files or [], **kwargs
+                    )
+                except TypeError:
+                    return await followup.send(
+                        components=components,
+                        ephemeral=bool(flags & (1 << 6)),
+                        files=files or [],
+                        **kwargs,
+                    )
+
+        token = _resolve_token(interaction)
+        application_id = _resolve_application_id(interaction)
         return await respond_interaction(
-            application_id, interaction_token, token, payload
+            application_id, interaction.token, token, payload
         )
 
+    async def _send_channel(
+        self,
+        ctx: Any,
+        payload: dict[str, Any],
+        *,
+        files: Optional[list] = None,
+        **kwargs: Any,
+    ) -> Any:
+        send_method = None
+        if hasattr(ctx, "send"):
+            send_method = ctx.send
+        elif hasattr(ctx, "channel") and hasattr(ctx.channel, "send"):
+            send_method = ctx.channel.send
 
-async def send_ui(ctx: Any, ui: UI, **kwargs: Any) -> str:
-    """Convenience wrapper around ``UI.send``."""
-    return await ui.send(ctx, **kwargs)
+        if send_method is not None:
+            try:
+                return await send_method(
+                    components=payload["components"],
+                    flags=payload.get("flags", IS_COMPONENTS_V2),
+                    files=files or [],
+                    **kwargs,
+                )
+            except TypeError:
+                try:
+                    return await send_method(
+                        components=payload["components"], files=files or [], **kwargs
+                    )
+                except Exception:
+                    pass
+
+        channel_id, token = _resolve_channel_and_token(ctx)
+        return await send_message(channel_id, token, payload, files=files)
+
+
+async def send_ui(target: Any, ui: UI, **kwargs: Any) -> Any:
+    return await ui.send(target, **kwargs)
+
+
+def _is_interaction(obj: Any) -> bool:
+    if obj is None:
+        return False
+    if hasattr(obj, "response") and hasattr(obj, "token"):
+        return True
+    if getattr(obj, "type", None) is not None and hasattr(obj, "token") and hasattr(obj, "id"):
+        return True
+    return False
 
 
 def _resolve_channel_and_token(ctx: Any) -> tuple[Any, str]:
@@ -104,10 +223,8 @@ def _resolve_channel_and_token(ctx: Any) -> tuple[Any, str]:
     if channel_id is None and hasattr(ctx, "message"):
         channel_id = getattr(getattr(ctx.message, "channel", None), "id", None)
     if channel_id is None:
-        raise ValueError("Could not resolve channel id from context")
-
-    token = _resolve_token(ctx)
-    return channel_id, token
+        raise ValueError("could not resolve channel id")
+    return channel_id, _resolve_token(ctx)
 
 
 def _resolve_token(obj: Any) -> str:
@@ -120,7 +237,7 @@ def _resolve_token(obj: Any) -> str:
             tok = getattr(http, "token", None)
             if tok:
                 return tok
-    raise ValueError("Could not resolve bot token from context")
+    raise ValueError("could not resolve bot token")
 
 
 def _resolve_application_id(interaction: Any) -> str:
@@ -131,4 +248,4 @@ def _resolve_application_id(interaction: Any) -> str:
         app = getattr(interaction.client, "application_id", None)
         if app:
             return str(app)
-    raise ValueError("Could not resolve application_id from interaction")
+    raise ValueError("could not resolve application_id")

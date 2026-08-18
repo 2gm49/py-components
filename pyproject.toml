@@ -1,7 +1,7 @@
 [project]
 name = "DiscordPYComponents"
-version = "1.0.0"
-description = "Discord Components V2 for discord.py — full layout, content and interactive components"
+version = "1.3.0"
+description = "Discord Components V2 for discord.py"
 authors = [{name="2gm49"}]
 dependencies = ["aiohttp"]
 readme = "README.md"

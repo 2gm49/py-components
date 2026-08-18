@@ -1,5 +1,3 @@
-"""Discord Components V2 enums and constants."""
-
 from enum import IntEnum
 
 
@@ -27,12 +25,12 @@ class ComponentType(IntEnum):
 
 
 class ButtonStyle(IntEnum):
-    PRIMARY = 1      # blurple
-    SECONDARY = 2    # grey
-    SUCCESS = 3      # green
-    DANGER = 4       # red
-    LINK = 5         # grey, navigates to a URL
-    PREMIUM = 6      # blurple, requires sku_id
+    PRIMARY = 1
+    SECONDARY = 2
+    SUCCESS = 3
+    DANGER = 4
+    LINK = 5
+    PREMIUM = 6
 
     primary = PRIMARY
     secondary = SECONDARY
@@ -52,4 +50,4 @@ class SeparatorSpacing(IntEnum):
     LARGE = 2
 
 
-IS_COMPONENTS_V2 = 1 << 15  # 32768
+IS_COMPONENTS_V2 = 1 << 15

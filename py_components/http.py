@@ -1,5 +1,3 @@
-"""Low-level Discord REST helpers for Components V2."""
-
 from __future__ import annotations
 
 import json
@@ -17,7 +15,6 @@ async def send_message(
     *,
     files: Optional[list] = None,
 ) -> str:
-    """POST /channels/{channel_id}/messages"""
     url = f"{API}/channels/{channel_id}/messages"
     headers = {
         "Authorization": f"Bot {token}" if not token.startswith("Bot ") else token,
@@ -48,7 +45,6 @@ async def edit_message(
     token: str,
     payload: dict[str, Any],
 ) -> str:
-    """PATCH /channels/{channel_id}/messages/{message_id}"""
     url = f"{API}/channels/{channel_id}/messages/{message_id}"
     headers = {
         "Authorization": f"Bot {token}" if not token.startswith("Bot ") else token,
@@ -65,9 +61,8 @@ async def respond_interaction(
     bot_token: str,
     payload: dict[str, Any],
     *,
-    type: int = 4,
+    type: int = 4,  # CHANNEL_MESSAGE_WITH_SOURCE
 ) -> str:
-    """Respond to an interaction (callback or follow-up)."""
     headers = {
         "Authorization": f"Bot {bot_token}" if not bot_token.startswith("Bot ") else bot_token,
         "Content-Type": "application/json",
@@ -85,4 +80,17 @@ async def respond_interaction(
             if resp.status < 400:
                 return text
         async with session.post(followup_url, json=payload, headers=headers) as resp:
+            return await resp.text()
+
+
+async def open_modal(
+    interaction_id: str,
+    interaction_token: str,
+    modal_data: dict[str, Any],
+) -> str:
+    url = f"{API}/interactions/{interaction_id}/{interaction_token}/callback"
+    body = {"type": 9, "data": modal_data}
+    headers = {"Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=body, headers=headers) as resp:
             return await resp.text()
