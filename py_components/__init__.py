@@ -32,7 +32,7 @@ from .view import View, button
 from .registry import Registry, default_registry
 from .http import send_message, edit_message, respond_interaction
 
-__version__ = "0.3.0"
+__version__ = "1.0.0"
 __all__ = [
     # enums
     "ButtonStyle",
