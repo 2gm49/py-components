@@ -73,6 +73,9 @@ class UI:
 
         if _is_interaction(target):
             return await self._send_interaction(target, payload, files=files, **kwargs)
+
+        # User/Member → open DM channel so we never POST to /channels/{user.id}
+        target = await _ensure_messageable(target)
         return await self._send_channel(target, payload, files=files, **kwargs)
 
     async def reply(
@@ -181,7 +184,6 @@ class UI:
             send_method = target.channel.send
 
         if send_method is not None:
-            # discord.py Messageable.send — try with flags first (needed for V2)
             attempts = [
                 dict(components=payload["components"], flags=payload.get("flags", IS_COMPONENTS_V2), files=files or [], **kwargs),
                 dict(components=payload["components"], flags=payload.get("flags", IS_COMPONENTS_V2), **kwargs),
@@ -196,7 +198,6 @@ class UI:
                     last_err = e
                     continue
                 except Exception as e:
-                    # real API error — don't keep retrying silently
                     last_err = e
                     break
             if last_err is not None and not isinstance(last_err, TypeError):
@@ -220,14 +221,36 @@ def _is_interaction(obj: Any) -> bool:
     return False
 
 
+def _is_user_like(obj: Any) -> bool:
+    """User/Member — has create_dm, not a guild channel."""
+    if obj is None:
+        return False
+    if callable(getattr(obj, "create_dm", None)):
+        return True
+    # duck type: no guild attribute path for pure User
+    cls_name = type(obj).__name__
+    return cls_name in ("User", "Member", "ClientUser")
+
+
+async def _ensure_messageable(target: Any) -> Any:
+    if _is_user_like(target):
+        dm = getattr(target, "dm_channel", None)
+        if dm is not None:
+            return dm
+        if callable(getattr(target, "create_dm", None)):
+            return await target.create_dm()
+    return target
+
+
 def _resolve_channel_and_token(obj: Any) -> tuple[Any, str]:
     channel_id = None
 
-    # bare channel / thread
-    if getattr(obj, "id", None) is not None and callable(getattr(obj, "send", None)):
-        # TextChannel, DMChannel, Thread, etc.
-        if not _is_interaction(obj):
-            channel_id = obj.id
+    # Prefer explicit channel objects (have recipients or guild, or type name)
+    name = type(obj).__name__
+    if name in ("TextChannel", "Thread", "DMChannel", "GroupChannel", "VoiceChannel", "StageChannel"):
+        channel_id = getattr(obj, "id", None)
+    elif getattr(obj, "id", None) is not None and callable(getattr(obj, "send", None)) and not _is_user_like(obj):
+        channel_id = obj.id
 
     if channel_id is None and hasattr(obj, "channel") and obj.channel is not None:
         channel_id = getattr(obj.channel, "id", None)
@@ -243,7 +266,6 @@ def _resolve_channel_and_token(obj: Any) -> tuple[Any, str]:
 
 
 def _resolve_token(obj: Any) -> str:
-    # common discord.py paths
     for attr in ("bot", "client", "_state"):
         owner = getattr(obj, attr, None)
         if owner is None:
@@ -253,13 +275,7 @@ def _resolve_token(obj: Any) -> str:
             tok = getattr(http, "token", None)
             if tok:
                 return tok
-        # bot.http.token
-        tok = getattr(owner, "token", None)
-        if tok and isinstance(tok, str) and not tok.startswith("Bot "):
-            # sometimes the raw token is stored; http.token is preferred
-            pass
 
-    # channel._state.http.token
     state = getattr(obj, "_state", None)
     if state is not None:
         http = getattr(state, "http", None)
@@ -268,7 +284,7 @@ def _resolve_token(obj: Any) -> str:
             if tok:
                 return tok
 
-    if hasattr(obj, "channel"):
+    if hasattr(obj, "channel") and obj.channel is not None:
         return _resolve_token(obj.channel)
 
     raise ValueError("could not resolve bot token")
