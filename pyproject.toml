@@ -1,10 +1,16 @@
 [project]
 name = "DiscordPYComponents"
-version = "0.2.33"
-description = "Discord Components V2 for discord.py"
+version = "1.0.0"
+description = "Discord Components V2 for discord.py — full layout, content and interactive components"
 authors = [{name="2gm49"}]
 dependencies = ["aiohttp"]
 readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[project.urls]
+Homepage = "https://pypi.org/project/DiscordPYComponents/"
+Documentation = "https://docs.discord.com/developers/components/overview"
 
 [build-system]
 requires = ["setuptools"]

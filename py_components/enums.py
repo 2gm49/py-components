@@ -1,5 +1,55 @@
-class ButtonStyle:
-    primary = 1
-    secondary = 2
-    success = 3
-    danger = 4
+"""Discord Components V2 enums and constants."""
+
+from enum import IntEnum
+
+
+class ComponentType(IntEnum):
+    ACTION_ROW = 1
+    BUTTON = 2
+    STRING_SELECT = 3
+    TEXT_INPUT = 4
+    USER_SELECT = 5
+    ROLE_SELECT = 6
+    MENTIONABLE_SELECT = 7
+    CHANNEL_SELECT = 8
+    SECTION = 9
+    TEXT_DISPLAY = 10
+    THUMBNAIL = 11
+    MEDIA_GALLERY = 12
+    FILE = 13
+    SEPARATOR = 14
+    CONTAINER = 17
+    LABEL = 18
+    FILE_UPLOAD = 19
+    RADIO_GROUP = 21
+    CHECKBOX_GROUP = 22
+    CHECKBOX = 23
+
+
+class ButtonStyle(IntEnum):
+    PRIMARY = 1      # blurple
+    SECONDARY = 2    # grey
+    SUCCESS = 3      # green
+    DANGER = 4       # red
+    LINK = 5         # grey, navigates to a URL
+    PREMIUM = 6      # blurple, requires sku_id
+
+    primary = PRIMARY
+    secondary = SECONDARY
+    success = SUCCESS
+    danger = DANGER
+    link = LINK
+    premium = PREMIUM
+
+
+class TextInputStyle(IntEnum):
+    SHORT = 1
+    PARAGRAPH = 2
+
+
+class SeparatorSpacing(IntEnum):
+    SMALL = 1
+    LARGE = 2
+
+
+IS_COMPONENTS_V2 = 1 << 15  # 32768
