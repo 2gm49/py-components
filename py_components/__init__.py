@@ -1,12 +1,20 @@
 from .enums import (
     ButtonStyle,
+    ChannelType,
     ComponentType,
+    EPHEMERAL,
+    InteractionResponseType,
     IS_COMPONENTS_V2,
+    MAX_MESSAGE_COMPONENTS,
+    MAX_MODAL_COMPONENTS,
+    MessageFlags,
     SeparatorSpacing,
+    SUPPRESS_NOTIFICATIONS,
     TextInputStyle,
 )
 from .components import (
     ActionRow,
+    BaseSelect,
     Button,
     ChannelSelect,
     Checkbox,
@@ -25,6 +33,7 @@ from .components import (
     RadioGroupOption,
     RoleSelect,
     Section,
+    SelectDefaultValue,
     SelectOption,
     Separator,
     StringSelect,
@@ -32,7 +41,11 @@ from .components import (
     TextDisplay,
     TextInput,
     Thumbnail,
+    UnknownComponent,
     UserSelect,
+    component_from_dict,
+    components_from_dicts,
+    count_components,
     make_emoji,
 )
 from .modal import Modal
@@ -40,16 +53,32 @@ from .ui import UI, send_ui
 from .view import View, button
 from .registry import Registry, default_registry
 from .http import send_message, edit_message, respond_interaction, open_modal
-from .ids import assign_ids, find_by_id, replace_by_id
+from .ids import assign_ids, count_payload_components, find_by_id, replace_by_id
+from .interactions import (
+    ComponentClick,
+    ModalSubmit,
+    SubmittedField,
+    interaction_kind,
+    parse_component,
+    parse_modal,
+)
 
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 __all__ = [
     "ButtonStyle",
+    "ChannelType",
     "ComponentType",
+    "EPHEMERAL",
+    "InteractionResponseType",
     "IS_COMPONENTS_V2",
+    "MAX_MESSAGE_COMPONENTS",
+    "MAX_MODAL_COMPONENTS",
+    "MessageFlags",
     "SeparatorSpacing",
+    "SUPPRESS_NOTIFICATIONS",
     "TextInputStyle",
     "ActionRow",
+    "BaseSelect",
     "Button",
     "ChannelSelect",
     "Checkbox",
@@ -68,6 +97,7 @@ __all__ = [
     "RadioGroupOption",
     "RoleSelect",
     "Section",
+    "SelectDefaultValue",
     "SelectOption",
     "Separator",
     "StringSelect",
@@ -75,7 +105,11 @@ __all__ = [
     "TextDisplay",
     "TextInput",
     "Thumbnail",
+    "UnknownComponent",
     "UserSelect",
+    "component_from_dict",
+    "components_from_dicts",
+    "count_components",
     "make_emoji",
     "Modal",
     "UI",
@@ -89,6 +123,13 @@ __all__ = [
     "respond_interaction",
     "open_modal",
     "assign_ids",
+    "count_payload_components",
     "find_by_id",
     "replace_by_id",
+    "ComponentClick",
+    "ModalSubmit",
+    "SubmittedField",
+    "interaction_kind",
+    "parse_component",
+    "parse_modal",
 ]

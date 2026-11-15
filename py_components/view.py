@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Coroutine, Optional
 
-from .components import ActionRow, Button, Component
+from .components import ActionRow, BaseSelect, Button, Component
 from .enums import ButtonStyle, IS_COMPONENTS_V2
 from .ids import assign_ids
 
@@ -45,6 +45,9 @@ class View:
             self.registry[component.custom_id] = callback
         return component
 
+    def add_select(self, select: BaseSelect, *, callback: Optional[Callback] = None) -> BaseSelect:
+        return self.add_component(select, callback=callback)  # type: ignore[return-value]
+
     def to_payload(self) -> dict[str, Any]:
         top_level: list[dict] = []
         buffer: list[Button] = []
@@ -58,7 +61,7 @@ class View:
                 if buffer:
                     top_level.append(ActionRow(*buffer).to_dict())
                     buffer = []
-                top_level.append(c.to_dict())
+                top_level.append(ActionRow(c).to_dict() if isinstance(c, BaseSelect) else c.to_dict())
         if buffer:
             top_level.append(ActionRow(*buffer).to_dict())
         assign_ids(top_level)
@@ -68,3 +71,11 @@ class View:
         cb = self.registry.get(custom_id)
         if cb:
             await cb(interaction)
+
+    async def dispatch_interaction(self, interaction: Any) -> bool:
+        data = getattr(interaction, "data", None) or {}
+        cb = self.registry.get(data.get("custom_id", ""))
+        if cb is None:
+            return False
+        await cb(interaction)
+        return True

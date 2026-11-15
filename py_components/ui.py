@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from .components import ActionRow, Button, Component
-from .enums import IS_COMPONENTS_V2
+from .components import ActionRow, BaseSelect, Button, Component, component_from_dict, count_components
+from .enums import EPHEMERAL, IS_COMPONENTS_V2, MAX_MESSAGE_COMPONENTS, SUPPRESS_NOTIFICATIONS
 from .http import send_message, respond_interaction
 from .ids import assign_ids, find_by_id, replace_by_id
 
@@ -16,6 +16,35 @@ class UI:
     def add(self, *components: Component) -> "UI":
         self.components.extend(components)
         return self
+
+    @classmethod
+    def from_payload(cls, payload: Any) -> "UI":
+        """Rebuild a UI from a raw payload, a components list, or a message dict."""
+        if isinstance(payload, dict):
+            payload = payload.get("components", [])
+        return cls(*[component_from_dict(c) for c in payload])
+
+    def count(self) -> int:
+        """Total components including nested ones, after loose buttons are wrapped."""
+        rows = sum(1 for _ in self._rows())
+        return count_components(self.components) + rows
+
+    def _rows(self):
+        buffer = 0
+        for c in self.components:
+            if isinstance(c, Button):
+                buffer += 1
+                if buffer == 5:
+                    yield 1
+                    buffer = 0
+            else:
+                if buffer:
+                    yield 1
+                    buffer = 0
+                if isinstance(c, BaseSelect):
+                    yield 1
+        if buffer:
+            yield 1
 
     def to_payload(self, *, assign_ids_: bool | None = None) -> dict[str, Any]:
         top_level: list[dict[str, Any]] = []
@@ -35,10 +64,17 @@ class UI:
             elif isinstance(c, ActionRow):
                 flush()
                 top_level.append(c.to_dict())
+            elif isinstance(c, BaseSelect):
+                flush()
+                top_level.append(ActionRow(c).to_dict())
             else:
                 flush()
                 top_level.append(c.to_dict())
         flush()
+
+        total = count_components(self.components) + sum(1 for _ in self._rows())
+        if total > MAX_MESSAGE_COMPONENTS:
+            raise ValueError(f"a message can have at most {MAX_MESSAGE_COMPONENTS} components, this one has {total}")
 
         do_ids = self._auto_ids if assign_ids_ is None else assign_ids_
         if do_ids:
@@ -64,12 +100,22 @@ class UI:
         target: Any,
         *,
         ephemeral: bool = False,
+        silent: bool = False,
         files: Optional[list] = None,
+        allowed_mentions: Any = None,
         **kwargs: Any,
     ) -> Any:
         payload = self.to_payload()
         if ephemeral:
-            payload["flags"] = payload.get("flags", 0) | (1 << 6)
+            payload["flags"] = payload.get("flags", 0) | EPHEMERAL
+        if silent:
+            payload["flags"] = payload.get("flags", 0) | SUPPRESS_NOTIFICATIONS
+            kwargs.setdefault("silent", True)
+        if allowed_mentions is not None:
+            kwargs["allowed_mentions"] = allowed_mentions
+            payload["allowed_mentions"] = (
+                allowed_mentions.to_dict() if hasattr(allowed_mentions, "to_dict") else allowed_mentions
+            )
 
         if _is_interaction(target):
             return await self._send_interaction(target, payload, files=files, **kwargs)
@@ -87,6 +133,10 @@ class UI:
         **kwargs: Any,
     ) -> Any:
         return await self.send(interaction, ephemeral=ephemeral, files=files, **kwargs)
+
+    async def update(self, interaction: Any, **kwargs: Any) -> Any:
+        """Edit the message a button or select was used on, as the interaction response."""
+        return await self.edit(interaction, **kwargs)
 
     async def edit(
         self,

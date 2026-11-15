@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any, Callable, Optional
 
 
+def _is_component_list(value: Any) -> bool:
+    return isinstance(value, list) and bool(value) and isinstance(value[0], dict) and "type" in value[0]
+
+
 def assign_ids(components: list[dict[str, Any]], *, start: int = 1) -> int:
     """Walk a components tree and fill in missing id fields sequentially.
 
@@ -20,7 +24,7 @@ def assign_ids(components: list[dict[str, Any]], *, start: int = 1) -> int:
                 used.add(i)
             for key in ("components", "items"):
                 child = n.get(key)
-                if isinstance(child, list) and child and isinstance(child[0], dict):
+                if _is_component_list(child):
                     collect(child)
             inner = n.get("component")
             if isinstance(inner, dict):
@@ -44,7 +48,7 @@ def assign_ids(components: list[dict[str, Any]], *, start: int = 1) -> int:
                 next_id += 1
             for key in ("components", "items"):
                 child = n.get(key)
-                if isinstance(child, list) and child and isinstance(child[0], dict):
+                if _is_component_list(child):
                     fill(child)
             inner = n.get("component")
             if isinstance(inner, dict):
@@ -66,7 +70,7 @@ def find_by_id(components: list[dict[str, Any]], target_id: int) -> Optional[dic
                 return n
             for key in ("components", "items"):
                 child = n.get(key)
-                if isinstance(child, list) and child and isinstance(child[0], dict):
+                if _is_component_list(child):
                     found = walk(child)
                     if found is not None:
                         return found
@@ -99,7 +103,7 @@ def replace_by_id(
                 return True
             for key in ("components", "items"):
                 child = n.get(key)
-                if isinstance(child, list) and child and isinstance(child[0], dict):
+                if _is_component_list(child):
                     if walk(child):
                         return True
             inner = n.get("component")
@@ -133,7 +137,7 @@ def map_ids(
             n = dict(n)
             for key in ("components", "items"):
                 child = n.get(key)
-                if isinstance(child, list) and child and isinstance(child[0], dict):
+                if _is_component_list(child):
                     n[key] = walk(child)
             if isinstance(n.get("component"), dict):
                 n["component"] = walk([n["component"]])[0]
@@ -144,3 +148,23 @@ def map_ids(
         return out
 
     return walk(components)
+
+
+def count_payload_components(components: list[dict[str, Any]]) -> int:
+    """Count every component in a raw payload, including nested ones."""
+    total = 0
+
+    def walk(nodes: list[dict[str, Any]]) -> None:
+        nonlocal total
+        for n in nodes:
+            total += 1
+            for key in ("components", "items"):
+                child = n.get(key)
+                if _is_component_list(child):
+                    walk(child)
+            for key in ("component", "accessory"):
+                if isinstance(n.get(key), dict):
+                    walk([n[key]])
+
+    walk(components)
+    return total

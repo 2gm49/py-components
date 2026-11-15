@@ -24,6 +24,17 @@ class Registry:
             return await self.routes[custom_id](*args, **kwargs)
         return None
 
+    async def dispatch_interaction(self, interaction: Any, *args: Any, **kwargs: Any) -> bool:
+        """Run the callback for a component or modal interaction's custom_id. Returns False if none matched."""
+        data = getattr(interaction, "data", None)
+        if data is None and isinstance(interaction, dict):
+            data = interaction.get("data")
+        custom_id = (data or {}).get("custom_id")
+        if custom_id not in self.routes:
+            return False
+        await self.routes[custom_id](interaction, *args, **kwargs)
+        return True
+
     def clear(self) -> None:
         self.routes.clear()
 
